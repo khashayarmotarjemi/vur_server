@@ -15,28 +15,74 @@ http.listen(3000, function () {
 });
 
 function setUpPlayer(socket) {
-    console.log('a player joined');
-
-    let player = {
-        'id': socket.id,
-        // 'socket': socket,
-        'xLocation': 200,
-        'yLocation': 200,
-    }
+    console.log('new connection to socket');
 
     socket.on('move', function (args) {
-        player.xLocation = args[0]
-        player.yLocation = args[1]
+        movePlayer(args)
+    })
+
+    socket.on('new_player', function (args) {
+        handleNewPlayerSetup(args)
     })
 
 
-    players.indexOf(player) === -1 ? players.push(player) : NaN
-
     setInterval(function () {
-        socket.emit('state' , player)
-    }, 3000)
+        socket.emit('state', JSON.stringify(players))
+        console.log(players)
+    }, 100)
 }
 
 
 
-var players = []
+function handleNewPlayerSetup(args) {
+    console.log('adding player: ' + args)
+
+    let player = getPlayer(args)
+
+    players.findIndex(p => p.id == player.id) === -1 ? players.push(player) : NaN
+    console.log("players list: " + players)
+}
+
+function movePlayer(args) {
+    console.log('new move event: ' + args)
+
+    let newPlayerState = getPlayer(args)
+    let oldPlayerState = players.find(player => player.id == newPlayerState.id)
+
+    let xDist = newPlayerState.x - oldPlayerState.x
+    let yDist = newPlayerState.y - oldPlayerState.y
+
+    let distance = Math.sqrt(xDist * xDist + yDist * yDist)
+
+    let times = Math.floor(distance/100)
+
+    let xInterval = xDist / times
+    let yInterval = yDist / times
+
+    console.log('x interval: ' + xInterval + ' times ' + times)
+
+    for (const i of Array(times).keys()) {
+
+        setTimeout(function () {
+            updatePlayer({
+                x: oldPlayerState.x + xInterval * i,
+                y: oldPlayerState.y + yInterval * i,
+                id: oldPlayerState.id
+            })
+        }, 100 * i);
+    }
+
+
+    // updatePlayer(newPlayerState)
+}
+
+function updatePlayer(newPlayer) {
+    let index = players.findIndex(player => player.id == newPlayer.id);
+    players = players.fill(newPlayer, 0, 1);
+}
+
+players = []
+
+function getPlayer(args) {
+    return JSON.parse(args)
+}
